@@ -26,6 +26,8 @@ from sklearn.pipeline import Pipeline
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import confusion_matrix, make_scorer
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
+from sklearn.preprocessing import MinMaxScaler
+from scipy.stats import mode
 
 ######################## Model Class ########################
 
@@ -603,11 +605,39 @@ class HibriModel():
 
         # Predict using the ensemble models
         ensemble_predictions = []
+        confidence_levels_probs = []
+        confidence_level_dif_preds = []
         for model_name, model_data in tqdm( self.ensemble_models.items() ):
+            
             model = model_data['model']
-            y_pred = model.predict( x_label )
+
+            if hasattr( model, 'predict_proba' ):
+
+                # If the model provides probabilities
+                proba = model.predict_proba( x_label )
+                y_pred = np.argmax( proba, axis = 1 )
+                confidence = np.max( proba, axis = 1 )
+
+            elif hasattr( model, 'decision_function' ):
+
+                # If the model provides decision scores (e.g., for SVM)
+                decision = model.decision_function( x_label )
+                # Convert decision scores to confidence levels
+                scaler = MinMaxScaler( feature_range = ( 0, 1 ) )
+                confidence = scaler.fit_transform( decision.reshape( -1, 1 ) ).flatten()
+                y_pred = model.predict( x_label )
+
+            else:
+
+                # For models without probability output, assign a confidence of 1
+                y_pred = model.predict( x_label )
+                confidence = np.ones( len( y_pred ) )
+
             ensemble_predictions.append( y_pred )
+            confidence_levels_probs.append( confidence )
+
         ensemble_predictions = np.array( ensemble_predictions ).T
+        confidence_levels_probs = np.array( confidence_levels_probs ).T
 
         x_test_tensor = torch.tensor( x_onehot, dtype = torch.float32 ).to( self.device )
         x_groups_tensor = torch.tensor( segmentation_classes, dtype = torch.long ).to( self.device )
@@ -615,8 +645,31 @@ class HibriModel():
 
         y_hat = self.model.predict( ( x_test_tensor, x_groups_tensor, x_ensemble_tensor ) )
 
-        df = pd.DataFrame( { 'predicted': y_hat, 'ORDER_ID': x_id } )
-        df = df.groupby( 'ORDER_ID' ).agg( { 'predicted': 'mean' } )
+        # compute the confidence based on the ensemble predictions
+        final_confidence_score = []
+        for i in range( ensemble_predictions.shape[0] ):            
+            sample_predictions = ensemble_predictions[i]
+            predicted_mode, count = mode( sample_predictions )            
+            if count == ensemble_predictions.shape[1]:  # All models agree
+                confidence = 1.0
+            else:
+                # Confidence is the proportion of models that predicted the most common class
+                if predicted_mode != round( y_hat[i] ):
+                    confidence = 0.0
+                else:
+                    confidence = count / ensemble_predictions.shape[1]
+
+            final_confidence_score.append( confidence )
+        final_confidence_score = np.array( final_confidence_score )
+
+        dc =  { 'predicted': y_hat, 'ORDER_ID': x_id, 'Confidence': final_confidence_score }
+        dc.update( { f'{model_name}_confidence': confidence_levels_probs[:, i] for i, model_name in enumerate( self.ensemble_models.keys() ) } )
+        df = pd.DataFrame( dc )
+        agg = { 'predicted': 'mean', 'Confidence': 'mean' }
+        agg.update( { f'{model_name}_confidence': 'mean' for model_name in self.ensemble_models.keys() } )
+        df = df.groupby( 'ORDER_ID' ).agg( agg )
+        df['Unified Confidence'] = df[[ f'{model_name}_confidence' for model_name in self.ensemble_models.keys() ]].apply( lambda x: np.prod( x ) ** ( 1 / len( x ) ), axis = 1 )
+        df.drop( columns = [ f'{model_name}_confidence' for model_name in self.ensemble_models.keys() ], inplace = True )
 
         return df.reset_index()
 
