@@ -10,13 +10,16 @@ This notebook is designed to evaluate various machine learning models on a proce
 Ensure you have the following libraries installed:
 - `numpy`
 - `pandas`
-- `torch`
-- `seaborn`
+- `pickle`
 - `scikit-learn`
+- `torch`
+- `torch-optimizer`
+- `tqdm`
+- `xgboost`
 
 You can install any missing packages with:
 ```bash
-pip install numpy pandas torch seaborn scikit-learn
+pip install numpy pandas pickle scikit-learn torch torch-optimizer tqdm xgboost
 ```
 
 ---
