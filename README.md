@@ -108,14 +108,3 @@ print(f"Num High Risk predicted as High Risk: {len(df_pred[(df_pred['predicted_c
 print(f"Num Low Risk predicted as Low Risk: {len(df_pred[(df_pred['predicted_class'] == 0) & (df_pred['target'] == 0)])}")
 print(f"Num Low Risk predicted as High Risk: {len(df_pred[(df_pred['predicted_class'] == 1) & (df_pred['target'] == 0)])}\n")
 ```
-
-### Step 7: Interpret Results
-Use the results from the evaluation metrics and risk analysis to interpret the model's effectiveness in classifying high-risk cases accurately.
-
----
-
-## Conclusion
-
-This notebook provides a comprehensive approach to evaluate various machine learning models on a risk-based classification dataset. Follow the steps carefully to load, preprocess, train, and evaluate models. Use the results summary and risk analysis to select the best model for deployment.
-
-For further assistance or questions, please refer to the comments within each cell in the notebook.

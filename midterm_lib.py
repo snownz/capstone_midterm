@@ -566,6 +566,60 @@ class LogisticRegressionModel(Module):
     def load(self, chpt=None, eval=True):
         self.load_training( self.log_dir, chpt, eval )
 
+class HibriModel():
+
+    def __init__(self, config_name):
+
+        # load the segmentation model
+        with open( f'./{config_name}/segmentation_model.pkl', 'rb' ) as f:
+            self.logistic_segmentation_model = pickle.load( f )
+
+        # load the ensemble models
+        with open( f'./{config_name}/ensemble_models.pkl', 'rb' ) as file:
+            self.ensemble_models = pickle.load( file )
+
+        # load the Logistic Regression model
+        self.device = torch.device( 'cuda' if torch.cuda.is_available() else 'cpu' )
+        self.model = LogisticRegressionModel( 696, f'./{config_name}/logs/', 'logistic_regression', 76, device = self.device )
+        self.model.load()
+        self.model.to( self.device )
+
+    def predict(self, x, selected_model='Ensemble'):
+
+        x_id, x_onehot, x_label = x
+
+        # Predict the segmentation classes
+        segmentation_classes = self.logistic_segmentation_model.predict( x_onehot )
+
+        # Add the segmentation classes to the features
+        x_label = np.concatenate( [ segmentation_classes.reshape( -1, 1 ), x_label ], axis = 1 )
+
+        if selected_model != 'Ensemble':
+            model = self.ensemble_models[selected_model]['model']
+            y_hat = model.predict( x_label )
+            df = pd.DataFrame( { 'predicted': y_hat, 'ORDER_ID': x_id } )
+            df = df.groupby( 'ORDER_ID' ).agg( { 'predicted': 'mean' } )
+            return df.reset_index()
+
+        # Predict using the ensemble models
+        ensemble_predictions = []
+        for model_name, model_data in tqdm( self.ensemble_models.items() ):
+            model = model_data['model']
+            y_pred = model.predict( x_label )
+            ensemble_predictions.append( y_pred )
+        ensemble_predictions = np.array( ensemble_predictions ).T
+
+        x_test_tensor = torch.tensor( x_onehot, dtype = torch.float32 ).to( self.device )
+        x_groups_tensor = torch.tensor( segmentation_classes, dtype = torch.long ).to( self.device )
+        x_ensemble_tensor = torch.tensor( ensemble_predictions, dtype = torch.float32 ).to( self.device )
+
+        y_hat = self.model.predict( ( x_test_tensor, x_groups_tensor, x_ensemble_tensor ) )
+
+        df = pd.DataFrame( { 'predicted': y_hat, 'ORDER_ID': x_id } )
+        df = df.groupby( 'ORDER_ID' ).agg( { 'predicted': 'mean' } )
+
+        return df.reset_index()
+
 ######################## Data Processing ########################
 
 def one_hot_encode_column(column, num_classes):
@@ -860,59 +914,3 @@ class DataProcessing(object):
         ids = self.dataset[self.id_column].values
 
         return ids, x_data
-
-class HibriModel():
-
-    def __init__(self, config_name):
-
-        # load the segmentation model
-        with open( f'./{config_name}/segmentation_model.pkl', 'rb' ) as f:
-            self.logistic_segmentation_model = pickle.load( f )
-
-        # load the ensemble models
-        with open( f'./{config_name}/ensemble_models.pkl', 'rb' ) as file:
-            self.ensemble_models = pickle.load( file )
-
-        # load the Logistic Regression model
-        self.device = torch.device( 'cuda' if torch.cuda.is_available() else 'cpu' )
-        self.model = LogisticRegressionModel( 696, f'./{config_name}/logs/', 'logistic_regression', 76, device = self.device )
-        self.model.load()
-        self.model.to( self.device )
-
-    def predict(self, x, selected_model='Ensemble'):
-
-        x_id, x_onehot, x_label = x
-
-        # Predict the segmentation classes
-        segmentation_classes = self.logistic_segmentation_model.predict( x_onehot )
-
-        # Add the segmentation classes to the features
-        x_label = np.concatenate( [ segmentation_classes.reshape( -1, 1 ), x_label ], axis = 1 )
-
-        if selected_model != 'Ensemble':
-            model = self.ensemble_models[selected_model]['model']
-            y_hat = model.predict( x_label )
-            df = pd.DataFrame( { 'predicted': y_hat, 'ORDER_ID': x_id } )
-            df = df.groupby( 'ORDER_ID' ).agg( { 'predicted': 'mean' } )
-            return df.reset_index()
-
-        # Predict using the ensemble models
-        ensemble_predictions = []
-        for model_name, model_data in tqdm( self.ensemble_models.items() ):
-            model = model_data['model']
-            y_pred = model.predict( x_label )
-            ensemble_predictions.append( y_pred )
-        ensemble_predictions = np.array( ensemble_predictions ).T
-
-        x_test_tensor = torch.tensor( x_onehot, dtype = torch.float32 ).to( self.device )
-        x_groups_tensor = torch.tensor( segmentation_classes, dtype = torch.long ).to( self.device )
-        x_ensemble_tensor = torch.tensor( ensemble_predictions, dtype = torch.float32 ).to( self.device )
-
-        y_hat = self.model.predict( ( x_test_tensor, x_groups_tensor, x_ensemble_tensor ) )
-
-        df = pd.DataFrame( { 'predicted': y_hat, 'ORDER_ID': x_id } )
-        df = df.groupby( 'ORDER_ID' ).agg( { 'predicted': 'mean' } )
-
-        return df.reset_index()
-
-        
