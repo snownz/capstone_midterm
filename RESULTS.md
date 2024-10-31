@@ -62,6 +62,20 @@ New features were engineered to enhance model performance. Key new features incl
 
 These features contribute to capturing more predictive signals in the dataset.
 
+Additionally, we applied a transformation to **explode** the `ANUMMER` values. Initially, the dataset had multiple `ANUMMER` columns (`ANUMMER_01` to `ANUMMER_10`), each representing different items associated with an `ORDER_ID`. The purpose of this transformation was to capture the information of each item separately. Here’s what this process involved:
+
+1. **Consolidating Columns**: Instead of having each `ANUMMER` in a separate column, we combined all these columns into a single column, where each row now contains an `ORDER_ID` and an associated `ANUMMER` value. This process, known as "melting," reshapes the data to a long format, making each `ANUMMER` value an independent entry.
+
+2. **Simplifying Data Structure**: By reshaping the data this way, it becomes easier to analyze each `ANUMMER` item individually. Each row in the transformed dataset represents a unique combination of `ORDER_ID` and `ANUMMER`, allowing us to focus on the characteristics of each item separately.
+
+3. **Removing Duplicates**: To avoid redundancy, we ensured each `ORDER_ID` and `ANUMMER` combination is unique. This step removes any duplicate items for each order, streamlining the data further.
+
+4. **Reattaching Original Information**: We then merged this reshaped data back with the original dataset to retain other attributes related to each `ORDER_ID`, ensuring no important information was lost in the transformation.
+
+5. **Cleaning Up**: Finally, we removed the original `ANUMMER_01` to `ANUMMER_10` columns from the dataset since they were now represented by the single consolidated `ANUMMER` column. This reduces the dataset's dimensionality and simplifies further analysis.
+
+**Summary**: This transformation allowed us to "explode" the `ANUMMER` columns, capturing each item associated with an order as a separate entry. This restructuring enables more detailed analysis, as each item (`ANUMMER`) is now treated independently, providing a clearer view of individual items within each order.
+
 ---
 
 ## 6. Dimensionality Reduction and Clustering
@@ -75,7 +89,7 @@ Due to the overlapping nature of the data points, it is apparent that simpler mo
 The t-SNE projection shows the separability of different classes in a 2D space.
 
 With t-SNE, we identified distinct clusters with varying densities of Class 0 (Low Risk) and Class 1 (High Risk). Analyzing the t-SNE projections, we observed that some clusters had a noticeably lower concentration of Class 0 cases, while others contained fewer Class 1 cases. This variance in class density within clusters reveals underlying structure in the data, suggesting that certain patterns and relationships between features are specific to each group.
-
+So we decided to use the Cluster ID as part of the features, for this a logistic regression model was created to predict in which group the data could be.
 
 
 ![t-SNE Projection](scenario_2/tsne_projection.png)
