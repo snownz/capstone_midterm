@@ -1,0 +1,5 @@
+Feature,Type,Observation
+B_BIRTHDATE,Date,
+Z_CARD_VALID,Date,
+TIME_ORDER,Time,
+DATE_LORDER,Date,
