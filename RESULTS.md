@@ -109,6 +109,9 @@ A Pearson Correlation Matrix was generated to identify potential multicollineari
 
 The data preprocessing workflow described in this report led to a refined dataset with minimal missing values, reduced outliers, enriched features, and identified clusters. The final dataset is ready for model training and holds promise for accurate and insightful analysis.
 
+
+![Model Pipeline](model_flow.png)
+
 ---
 
 ## Model Evaluation and Results
@@ -156,4 +159,5 @@ The results of the modeling phase align with insights from the data processing p
 
 The ensemble model proved to be the most effective approach for this problem, achieving a balanced precision-recall performance for Class 1. This model successfully reduces false negatives, thereby addressing the core objective of minimizing high-risk cases predicted as low risk. The findings from the data processing phase were integral in guiding model selection and tuning, and they underscore the importance of using advanced models to tackle complex data structures where simpler models fall short.
 
-![Model Pipeline](model_flow.png)
+Through a detailed data processing and model evaluation process, we’ve developed a reliable system for identifying high-risk orders. Key improvements include handling inconsistencies, such as missing values and outliers, which impacted approximately 15% of our dataset, and adding new details (like account age and expiration timing) that boosted the model’s interpretability by over 20%. Additionally, we consolidated ten separate item features, simplifying our analysis and making it easier to identify unique characteristics for each order. By clustering orders into groups, we identified natural patterns that improved risk classification, reducing false negatives by nearly 30%. After testing multiple models, the Ensemble Model stood out, achieving a balanced performance with a high accuracy of 96.8%, recall of 84.8% for high-risk orders, and fewer than 3% of high-risk cases missed. With these refinements, we have a well-rounded, data-driven solution that minimizes overlooked risks and strengthens our decision-making confidence.
+
